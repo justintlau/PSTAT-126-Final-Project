@@ -1,0 +1,126 @@
+---
+title: "Project"
+author: "Justin Lau"
+date: "5/9/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Questions for project:
+1.) What Miles per Gallon (MPG) can we predict from an 8 cylinder engine in a vehicle from 1970?
+2.) Does the number of cylinders in an engine or the model year of a vehicle have a greater effect on MPG?
+
+```{r}
+#Put auto-mpg.data-original into an Excel Sheet
+library("readxl")
+library(dplyr)
+library(ggplot2)
+library(olsrr)
+auto <- read_excel("Auto_data.xlsx") 
+```
+
+```{r}
+attach(auto)
+```
+
+```{r}
+#Removing rows with MPG or Horsepower Values that are empty
+test <- subset(auto, MPG!='NA')
+auto <- subset(test, Horsepower!='NA')
+View(auto) 
+auto <- subset(auto, select=-c(`Car Name`))
+```
+```{r}
+#Converting Columns that were imported in as character back into numeric values
+auto$MPG <- as.numeric(as.character(auto$MPG))
+auto$Cylinders <- as.numeric(as.character(auto$Cylinders))
+auto$Horsepower <- as.numeric(as.character(auto$Horsepower))
+sapply(auto, class)
+year = auto$`Model Year`
+```
+```{r}
+pairs(MPG~ Cylinders + Displacement + Horsepower + Weight + Acceleration + year + Origin, auto, main='Scatterplot Matrix of Auto-MPG Data', cex=.5)
+
+```
+
+```{r}
+pairs(MPG~Cylinders+year, auto, main='Scatterplot Matrix of Cylinder and Model Year on MPG')
+
+names(auto)
+```
+```{r}
+model0 <- lm(MPG~Cylinders + Displacement + Horsepower + Weight + Acceleration + year + Origin, auto)
+ggplot(auto, aes(x=year, y=MPG, color=Cylinders)) +
+  geom_point() + ggtitle("Regression on MPG with Model Year and Cylinders") +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE)
+
+ols_step_best_subset(model0)
+```
+
+```{r}
+model1 <- lm(MPG~Cylinders + Horsepower + Weight + year, auto)
+#plot(model1)
+logmodel <- lm(MPG ~ Cylinders + Horsepower + log(Weight) + year, auto)
+plot(logmodel)
+```
+
+```{r}
+ggplot(model1, aes(x = Cylinders, y = resid(model1))) +
+  geom_point() 
+
+ggplot(model1, aes(x = Horsepower, y = resid(model1))) +
+  geom_point() 
+
+ggplot(model1, aes(x = Weight, y = resid(model1))) +
+  geom_point() 
+
+ggplot(model1, aes(x = year, y = resid(model1))) +
+  geom_point() 
+```
+
+```{r}
+seventy = filter(auto, `Model Year` == 70 & Cylinders == 8)
+model1 <- lm(log(MPG)~Cylinders + log(Horsepower) + log(Weight)  + year, auto)
+model2 <- lm(log(MPG)~Cylinders + log(Horsepower) + log(Weight)  + year + Cylinders*year, auto)
+plot(model1)
+plot(model2)
+
+ols_plot_resid_stud(model2)
+```
+
+```{r}
+seventy = filter(auto, year==70)
+testnew <- data.frame(Cylinders=8, Horsepower = mean(seventy$Horsepower),Weight = mean(seventy$Weight), year = 70)
+modeltest <- lm(log(MPG)~Cylinders + log(Horsepower) + log(Weight)  + year , auto)
+
+pred <- predict(modeltest, testnew, interval = 'prediction')
+pred
+normalized <- exp(pred)
+normalized
+```
+
+```{r}
+year = auto$`Model Year`
+```
+
+
+```{r}
+model_cylinder <- lm(MPG~year, auto)
+model_year <- lm(MPG~ Cylinders, auto)
+mos <- lm(MPG~ Cylinders + year, auto)
+cat(summary(model_cylinder)$r.squared,"Doesn't have Cylinders", '\n')
+cat(summary(model_year)$r.squared,"Doesn't have years", '\n')
+cat(summary(mos)$r.squared,"R^2", '\n')
+```
+
+```{r}
+> Modeltest3 <- lm(log(MPG)~log(Horsepower) + log(Weight) + year, auto)
+> anova(Modeltest3)
+
+> Modeltest4 <- lm(log(MPG)~log(Horsepower) + log(Weight) + Cylinders, auto)
+> anova(Modeltest4)
+
+
+```
